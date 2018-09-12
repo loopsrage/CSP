@@ -11,6 +11,9 @@
             <TabItem Header="Server Setup" Name="SetupSettings">
                 <local:ServerSetup x:Name="ServerSetup"></local:ServerSetup>
             </TabItem>
+            <TabItem Header="API Server Setup">
+                
+            </TabItem>
         </TabControl>
     </Grid>
 </Window>

@@ -4,8 +4,6 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Data.SqlClient;
-using Microsoft.SqlServer.Management.Smo;
-using Microsoft.SqlServer.Management.Common;
 
 namespace SetupLabs
 {
@@ -20,14 +18,21 @@ namespace SetupLabs
             string VersionName = FolderName.Substring(FolderName.LastIndexOf(' ') + 1).Replace(".zip", "").Replace('.','_');
             _DatabaseName = "Director_" + VersionName;
         }
-        private string FormatQueryFromFile()
+        private List<string> FormatForMultipleQueries(string Query)
+        {
+            List<string> QueryList = new List<string>();
+            QueryList = Query.Split(new string[] { "GO"}, StringSplitOptions.None).ToList();
+            return QueryList;
+        }
+        private List<string> FormatQueryFromFile()
         {
             StringBuilder QueryBuilder = new StringBuilder();
             foreach (String Line in DataManager.UpgradeFileManager_Prop.CreateDatabase_Query)
             {
                 QueryBuilder.AppendLine(Line);
             }
-            return QueryBuilder.ToString();
+            List<string> Queries = FormatForMultipleQueries(QueryBuilder.ToString());
+            return Queries;
         }
 
         public void CreateDB_Query()
@@ -50,7 +55,7 @@ namespace SetupLabs
                 }
                 catch (SqlException SQE)
                 {
-                    Console.WriteLine(SQE.Message);
+                    DataManager.ServerSetup_Prop.UpdateLogView(SQE.Message);
                 }
                 finally
                 {
@@ -63,26 +68,28 @@ namespace SetupLabs
         public void RunCreate_Query()
         {
             _ConnectionString = "Server="+ DataManager.ServerSetup_Prop.FQDN_Prop +";Database=" + _DatabaseName + ";User ID=sa;Password=Passw0rd";
+            List<string> QueryResults = FormatQueryFromFile();
             using (SqlConnection Conn = new SqlConnection(_ConnectionString))
             {
                 try
                 {
                     Conn.Open();
-                    Server DB = new Server(new ServerConnection(Conn));
-                    string Script = FormatQueryFromFile();
-                    DB.ConnectionContext.ExecuteNonQuery(Script);
-                    //using (SqlCommand CMD = new SqlCommand())
-                    //{
-                    //    DataManager.CurrentStatus = DataManager.InstallStatus.CreateDatabaseTables;
-                    //    CMD.Connection = Conn;
-                    //    CMD.CommandType = System.Data.CommandType.Text;
-                    //    CMD.CommandText = FormatQueryFromFile();
-                    //    CMD.ExecuteNonQuery();
-                    //}
+                    foreach (string Query in QueryResults)
+                    {
+                        using (SqlCommand CMD = new SqlCommand())
+                        {
+                            DataManager.CurrentStatus = DataManager.InstallStatus.CreateDatabaseTables;
+                            CMD.Connection = Conn;
+                            CMD.CommandType = System.Data.CommandType.Text;
+                            CMD.CommandText = Query;
+                            Console.WriteLine(Query);
+                            CMD.ExecuteNonQuery();
+                        }
+                    }
                 }
                 catch (SqlException SQE)
                 {
-                    Console.WriteLine(SQE.Message);
+                    DataManager.ServerSetup_Prop.UpdateLogView(SQE.Message);
                 }
                 finally
                 {
@@ -96,7 +103,7 @@ namespace SetupLabs
             _ConnectionString = "Server="+ DataManager.ServerSetup_Prop.FQDN_Prop +";Database=Master;User ID=sa;Password=Passw0rd";
             using (SqlConnection Conn = new SqlConnection(_ConnectionString))
             {
-                string CheckDBQuery = "Select db_id('{"+_DatabaseName+"}')";
+                string CheckDBQuery = "SELECT Count(Name) from Sysdatabases where Name = '"+_DatabaseName+"'";
                 try
                 {
                     Conn.Open();
@@ -105,13 +112,30 @@ namespace SetupLabs
                         CMD.Connection = Conn;
                         CMD.CommandType = System.Data.CommandType.Text;
                         CMD.CommandText = CheckDBQuery;
-                        return (CMD.ExecuteScalar() == DBNull.Value);
+                        using (SqlDataReader SDR = CMD.ExecuteReader())
+                        {
+                            if (SDR.Read())
+                            {
+                                if (SDR.GetInt32(0) == 0)
+                                {
+                                    Status = false;
+                                }
+                                else
+                                {
+                                    Status = true;
+                                }
+                            }
+                            else
+                            {
+                                Status = true;
+                            }
+                        }
                     }
                 }
                 catch (SqlException SQE)
                 {
-                    Status = false;
-                    Console.WriteLine(SQE.Message);
+                    Status = true;
+                    DataManager.ServerSetup_Prop.UpdateLogView(SQE.Message);
                 }
                 finally
                 {
@@ -159,7 +183,7 @@ namespace SetupLabs
                 catch (SqlException SQE)
                 {
                     Status = false;
-                    Console.WriteLine(SQE.Message);
+                    DataManager.ServerSetup_Prop.UpdateLogView(SQE.Message);
                 } finally
                 {
                     Conn.Close();
@@ -209,7 +233,7 @@ namespace SetupLabs
                 catch (SqlException SQE)
                 {
                     Status = false;
-                    Console.WriteLine(SQE.Message);
+                    DataManager.ServerSetup_Prop.UpdateLogView(SQE.Message);
                 }
                 finally
                 {

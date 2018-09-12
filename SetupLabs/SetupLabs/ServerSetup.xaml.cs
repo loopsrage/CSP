@@ -24,6 +24,7 @@ namespace SetupLabs
         private string _FQDN;
         private string _Credential;
         private string _Version;
+        private StringBuilder _Logging = new StringBuilder();
 
         public string FQDN_Prop {
             get { return _FQDN; }
@@ -38,6 +39,21 @@ namespace SetupLabs
         {
             get { return _Version; }
             set { _Version = value; }
+        }
+
+        private StringBuilder Logging_Prop
+        {
+            get { return _Logging; }
+            set { _Logging = value; }
+        }
+
+        public void UpdateLogView(string LogMessage)
+        {
+            DateTime CurrentTime = DateTime.Now;
+            Logging_Prop.AppendLine();
+            Logging_Prop.Append(CurrentTime.ToLocalTime().ToString() + ": ");
+            Logging_Prop.Append(LogMessage);
+            InstallLogs.Text = Logging_Prop.ToString();
         }
 
         public ServerSetup()
@@ -67,6 +83,7 @@ namespace SetupLabs
                 // Input Validation
                 return;
             }
+
             if (_Version == null || _Version == string.Empty)
             {
                 // Input Validation
@@ -80,24 +97,34 @@ namespace SetupLabs
 
             DataManager.UpgradeFileManager_Prop.UnzipUpgradeFolder(Version_Prop);
 
-            if (DataManager.Sql.CheckCreateSuccess())
+            if (!DataManager.Sql.CheckCreateSuccess())
             {
+                UpdateLogView("Running Create Database query");
                 Sender_InstallButton.Content = DataManager.CurrentStatus.ToString();
                 DataManager.Sql.CreateDB_Query();
+                UpdateLogView("Done Running Create Database Query");
             }
+
             if (DataManager.Sql.CheckCreateSuccess())
             {
-                Sender_InstallButton.Content = DataManager.CurrentStatus.ToString();
-                DataManager.Sql.RunCreate_Query();
+                if (!DataManager.Sql.CheckScriptSuccess())
+                {
+                    UpdateLogView("Running CreateDatabase.sql");
+                    Sender_InstallButton.Content = DataManager.CurrentStatus.ToString();
+                    DataManager.Sql.RunCreate_Query();
+                    UpdateLogView("Done Running CreateDatabase.sql");
+                }
             }
 
             if (DataManager.Sql.CheckScriptSuccess()) // && CheckMSISuccess
             {
                 if (!DataManager.ConnectionManager_Prop.CheckMSISuccess())
                 {
+                    UpdateLogView("Running MSI");
                     Sender_InstallButton.Content = DataManager.CurrentStatus.ToString();
                     DataManager.ConnectionManager_Prop.RunMSIRemote();
                     Sender_InstallButton.Content = DataManager.CurrentStatus.ToString();
+                    UpdateLogView("Done Running MSI");
                 }
                 else
                 {
@@ -108,8 +135,10 @@ namespace SetupLabs
 
             if (DataManager.CurrentStatus.ToString() == "AwaitingVCC")
             {
+                UpdateLogView("Waiting for user to run VCC");
                 if (DataManager.Sql.CheckVCCSuccess())
                 {
+                    UpdateLogView("VCC Completed by the user");
                     DataManager.CurrentStatus = DataManager.InstallStatus.InstallComplete;
                     Sender_InstallButton.Content = DataManager.CurrentStatus.ToString();
                 }

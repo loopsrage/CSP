@@ -37,7 +37,7 @@ namespace SetupLabs
             private set { _CreateDatabase_Query = value;}
         }
 
-        private string RemotePath = @"\\PRIMARY\Users\administrator\Desktop\AutoVersionUpdate";
+        private string RemotePath = @"\\WIN-CA0MGSCPBHA\Users\Administrator\Desktop\AutoVersionUpdate";
         private string DefaultSQLFolder = @"\Database Scripts\MSSQL\";
         private string MSIFileName = "VenafiTPPInstallx64.msi";
 
@@ -54,16 +54,19 @@ namespace SetupLabs
         {
             string FolderName = RemotePath + "\\" + Filename.Substring(Filename.LastIndexOf('\\') + 1).Replace(".zip", "");
             if (!Directory.Exists(FolderName))
-            { 
+            {
+                DataManager.ServerSetup_Prop.UpdateLogView("Starting Unzip");
                 try
                 {
                     ZipFile.ExtractToDirectory(Filename, FolderName);
                     DataManager.CurrentStatus = DataManager.InstallStatus.Unzipping;
                     InstallFiles = FolderName;
+                    DataManager.ServerSetup_Prop.UpdateLogView("Unzip Complete");
+
                 }
                 catch (Exception EX)
                 {
-                    Console.WriteLine(EX.Message);
+                    DataManager.ServerSetup_Prop.UpdateLogView(EX.Message);
                 } finally
                 {
                     GetDatabaseCreateScript();
@@ -105,7 +108,7 @@ namespace SetupLabs
         {
             if (File.Exists(InstallFiles + "\\" + MSIFileName))
             {
-                string FormatInstallFiles = InstallFiles.Replace("\\\\PRIMARY\\", "C:\\");
+                string FormatInstallFiles = InstallFiles.Replace("\\\\WIN-CA0MGSCPBHA\\", "C:\\");
                 MSIFile = FormatInstallFiles + "\\" +  MSIFileName;
             }
         }

@@ -73,7 +73,7 @@ namespace SetupLabs
             }
             catch (ManagementException ME)
             {
-                Console.WriteLine(ME.Message);
+                DataManager.ServerSetup_Prop.UpdateLogView(ME.Message);
             } 
         }
         public bool CheckMSISuccess()
@@ -115,7 +115,7 @@ namespace SetupLabs
             }
             catch (ManagementException ME)
             {
-                Console.WriteLine(ME.Message);
+                DataManager.ServerSetup_Prop.UpdateLogView(ME.Message);
                 Status = false;
             }
             return Status;
